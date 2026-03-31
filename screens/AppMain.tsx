@@ -18,8 +18,7 @@ export default function AppMain({ navigation }: any) {
   const [nickname, setNickname] = useState("");
 
   // 1. 根據平台決定是否啟用「點擊空白處收起鍵盤」
-  // 在 Web 版上 TouchableWithoutFeedback 經常會攔截觸控事件導致無法打字
-  const Container = Platform.OS === "web" ? View : TouchableWithoutFeedback;
+  const Container = (Platform.OS === "web" ? View : TouchableWithoutFeedback) as any;
   const containerProps =
     Platform.OS === "web"
       ? { style: { flex: 1 } }
@@ -98,10 +97,10 @@ export default function AppMain({ navigation }: any) {
             <TextInput
               value={lineId}
               onChangeText={setLineId}
-              // 針對網頁版移除藍色外框並確保層級在最前方
+              // 使用 (styles as any) 避開 TS 對 web 樣式的檢查
               style={[
                 styles.input,
-                Platform.OS === "web" && { outlineStyle: "none" },
+                Platform.OS === "web" && ({ outlineStyle: "none" } as any),
               ]}
               autoCapitalize="none"
               autoCorrect={false}
@@ -119,7 +118,7 @@ export default function AppMain({ navigation }: any) {
               onChangeText={setNickname}
               style={[
                 styles.input,
-                Platform.OS === "web" && { outlineStyle: "none" },
+                Platform.OS === "web" && ({ outlineStyle: "none" } as any),
               ]}
               placeholder="請輸入暱稱"
               placeholderTextColor="#9ca3af"
@@ -172,11 +171,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     fontSize: 16,
     color: "#111827",
-    // 確保網頁版滑鼠指上去是文字選取狀態
+    // 透過 Platform.select 搭配 as any 處理網頁專用樣式
     ...Platform.select({
       web: {
         cursor: "text",
-      },
+      } as any,
     }),
   },
   helperText: { marginTop: 8, fontSize: 12, color: "#6b7280" },
