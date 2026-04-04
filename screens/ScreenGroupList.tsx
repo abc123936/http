@@ -17,20 +17,19 @@ export default function ScreenGroupList({ navigation }: any) {
   const closeMenu = () => { setMenuOpen(false); setMenuGroupId(null); };
 
   const leaveGroup = () => {
-    const g = groups.find(x => x.id === menuGroupId);
-    if (!g) return;
-    const tid = g.id;
-    const tname = g.name;
+    const tid = menuGroupId;
+    const targetGroup = groups.find(g => g.id === tid);
+    if (!targetGroup) return;
     closeMenu();
-    
-    const doDelete = () => setGroups((prev) => prev.filter((x) => x.id !== tid));
+
+    const doDelete = () => setGroups(prev => prev.filter(g => g.id !== tid));
 
     if (Platform.OS === 'web') {
-      if (window.confirm(`確定退出「${tname}」？`)) doDelete();
+      if (window.confirm(`確定退出「${targetGroup.name}」？`)) doDelete();
     } else {
-      Alert.alert("確認", `確定退出「${tname}」？`, [
+      Alert.alert("退出確認", `確定退出「${targetGroup.name}」？`, [
         { text: "取消", style: "cancel" },
-        { text: "確定", style: "destructive", onPress: doDelete },
+        { text: "確定", style: "destructive", onPress: doDelete }
       ]);
     }
   };
@@ -47,13 +46,13 @@ export default function ScreenGroupList({ navigation }: any) {
       <FlatList
         data={filtered}
         keyExtractor={(item) => item.id}
-        extraData={groups} // 🌟 強制刷新
+        extraData={groups}
         contentContainerStyle={styles.listPadding}
         renderItem={({ item }) => (
           <Pressable onPress={() => navigation.navigate("MemberList", { group: item })} style={styles.card}>
             <Text style={styles.groupName}>{item.name}</Text>
             <View style={styles.rightIcons}>
-              <Pressable onPress={(e) => { e.stopPropagation(); setGroups(prev => prev.map(x => x.id === item.id ? {...x, muted: !x.muted} : x)); }} style={styles.iconBtn}>
+              <Pressable onPress={(e) => { e.stopPropagation(); setGroups(p => p.map(x => x.id === item.id ? {...x, muted: !x.muted} : x)); }} style={styles.iconBtn}>
                 <Text style={{ fontSize: 18 }}>{item.muted ? "🔇" : "🔈"}</Text>
               </Pressable>
               <Pressable onPress={(e) => { e.stopPropagation(); openMenu(item.id); }} style={styles.iconBtn}>
@@ -67,11 +66,11 @@ export default function ScreenGroupList({ navigation }: any) {
         <Pressable style={styles.modalBackdrop} onPress={closeMenu}><View style={{ flex: 1 }} /></Pressable>
         <View style={styles.sheet}>
           <View style={styles.sheetHandle} />
-          <TouchableOpacity style={styles.sheetItem} onPress={() => { setGroups(prev => prev.map(x => x.id === menuGroupId ? {...x, muted: !x.muted} : x)); closeMenu(); }}>
+          <TouchableOpacity style={styles.sheetItem} onPress={() => { setGroups(p => p.map(x => x.id === menuGroupId ? {...x, muted: !x.muted} : x)); closeMenu(); }}>
             <Text style={styles.sheetText}>{groups.find(x => x.id === menuGroupId)?.muted ? "開啟推播" : "關閉推播"}</Text>
           </TouchableOpacity>
           <View style={styles.sheetDivider} />
-          <TouchableOpacity style={styles.sheetItem} onPress={() => { closeMenu(); navigation.navigate("ReviewMembers", { group: groups.find(x => x.id === menuGroupId) }); }}>
+          <TouchableOpacity style={styles.sheetItem} onPress={() => { const g = groups.find(x => x.id === menuGroupId); closeMenu(); navigation.navigate("ReviewMembers", { group: g }); }}>
             <Text style={styles.sheetText}>審核新成員</Text>
           </TouchableOpacity>
           <View style={styles.sheetDivider} />
@@ -89,7 +88,7 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: "#fff" },
   header: { height: 56, justifyContent: "center", alignItems: "center", borderBottomWidth: 1, borderBottomColor: "#f3f4f6" },
   headerTitle: { fontSize: 16, fontWeight: "800", color: "#111827" },
-  searchWrap: { paddingHorizontal: 16, paddingVertical: 12 },
+  searchWrap: { padding: 16 },
   searchBox: { height: 46, borderRadius: 12, backgroundColor: "#f3f4f6", paddingHorizontal: 12, flexDirection: "row", alignItems: "center", gap: 8 },
   searchInput: { flex: 1, fontSize: 14, color: "#111827" },
   listPadding: { paddingHorizontal: 16 },
