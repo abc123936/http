@@ -1,120 +1,166 @@
-import React, { useMemo, useState } from "react";
+import React from "react";
 import {
-  SafeAreaView,
   View,
   Text,
-  Pressable,
-  FlatList,
   StyleSheet,
+  FlatList,
+  Pressable,
+  Alert,
+  SafeAreaView,
 } from "react-native";
+import { useGroups } from "../context/GroupContext";
 
-type GroupItem = { id: string; name: string; muted: boolean };
-type Member = {
-  id: string;
-  name: string;
-  role?: "管理員" | "成員";
-  status?: "正常" | "可疑";
-};
+export default function ScreenReviewMembers({ navigation }: any) {
+  const { pendingRequests, handleReview } = useGroups();
 
-export default function ScreenMemberList({ navigation, route }: any) {
-  const g: GroupItem = route.params.group;
-
-  const members: Member[] = useMemo(
-    () => [
-      { id: "m1", name: "爸爸", role: "管理員", status: "正常" },
-      { id: "m2", name: "媽媽", role: "管理員", status: "正常" },
-      { id: "m3", name: "弟弟", role: "成員", status: "可疑" },
-      { id: "m4", name: "我", role: "成員", status: "正常" },
-      { id: "m5", name: "阿嬤", role: "成員", status: "可疑" },
-    ],
-    [],
-  );
-
-  const onBack = () => navigation.goBack();
+  const onConfirm = (req: any, approve: boolean) => {
+    const action = approve ? "通過" : "拒絕";
+    Alert.alert("審核操作", `確定要 ${action} ${req.userName} 的加入申請嗎？`, [
+      { text: "取消", style: "cancel" },
+      {
+        text: "確定",
+        style: approve ? "default" : "destructive",
+        onPress: () => handleReview(req.userId, req.groupId, approve),
+      },
+    ]);
+  };
 
   return (
-    <SafeAreaView style={styles.safe}>
-      {/* Header - 左右按鈕已移除，標題置中 */}
+    <SafeAreaView style={styles.container}>
+      {/* --- 修改後的 Header：徹底移除 Pressable 標籤 --- */}
       <View style={styles.header}>
-        <Pressable style={styles.headerTitleContainer} onPress={onBack}>
-          <Text style={styles.headerTitle}>{g.name}</Text>
-        </Pressable>
+        <View style={styles.headerTitleWrap}>
+          <Text style={styles.title}>新成員申請審核</Text>
+          <Text style={styles.subtitle}>
+            共有 {pendingRequests.length} 位待處理
+          </Text>
+        </View>
       </View>
-
-      <View style={{ paddingHorizontal: 16, paddingBottom: 10 }}>
-        <Text style={styles.subTitle}>群組成員</Text>
-      </View>
+      {/* ------------------------------------------ */}
 
       <FlatList
-        data={members}
-        keyExtractor={(it) => it.id}
-        contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 16 }}
-        ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
+        data={pendingRequests}
+        keyExtractor={(item) => item.userId}
+        contentContainerStyle={styles.listContent}
         renderItem={({ item }) => (
-          <View style={styles.memberCard}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.memberName}>{item.name}</Text>
-              <Text style={styles.memberMeta}>
-                {item.role ?? "成員"} ・ {item.status ?? "正常"}
-              </Text>
+          <View style={styles.requestCard}>
+            <View style={styles.userInfo}>
+              <View style={styles.avatar}>
+                <Text style={styles.avatarText}>{item.userName.charAt(0)}</Text>
+              </View>
+              <View style={styles.textDetails}>
+                <Text style={styles.userName}>{item.userName}</Text>
+                <Text style={styles.userId}>Line ID: {item.userId}</Text>
+              </View>
             </View>
 
-            <View style={styles.statusPill}>
-              <Text style={styles.statusPillText}>
-                {item.status === "可疑" ? "❗可疑" : " ☑ 正常"}
-              </Text>
+            <View style={styles.btnGroup}>
+              <Pressable
+                onPress={() => onConfirm(item, false)}
+                style={styles.rejectBtn}
+              >
+                <Text style={styles.rejectBtnText}>拒絕</Text>
+              </Pressable>
+
+              <Pressable
+                onPress={() => onConfirm(item, true)}
+                style={styles.approveBtn}
+              >
+                <Text style={styles.approveBtnText}>通過</Text>
+              </Pressable>
             </View>
           </View>
         )}
+        ListEmptyComponent={
+          <View style={styles.emptyBox}>
+            <Text style={styles.emptyIcon}>📄</Text>
+            <Text style={styles.empty}>目前沒有待審核的申請</Text>
+          </View>
+        }
       />
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: "#fff" },
+  container: { flex: 1, backgroundColor: "#F3F4F6" },
   header: {
-    height: 56,
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
+    height: 70, // 增加一點高度給副標題空間
     paddingHorizontal: 12,
+    backgroundColor: "#fff",
+    borderBottomWidth: 1,
+    borderBottomColor: "#E5E7EB",
   },
-  headerTitleContainer: {
-    flex: 1,
+  headerTitleWrap: { 
+    flex: 1, 
+    alignItems: "center", 
+    justifyContent: "center" 
+  },
+  title: {
+    fontSize: 18,
+    fontWeight: "900",
+    color: "#111827",
+    textAlign: "center",
+  },
+  subtitle: {
+    fontSize: 12,
+    color: "#6B7280",
+    marginTop: 2,
+    textAlign: "center",
+  },
+  listContent: { padding: 16 },
+  requestCard: {
+    backgroundColor: "#fff",
+    padding: 16,
+    borderRadius: 20,
+    marginBottom: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 3,
+  },
+  userInfo: { flexDirection: "row", alignItems: "center", marginBottom: 16 },
+  avatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: "#E5E7EB",
     alignItems: "center",
     justifyContent: "center",
   },
-  headerTitle: {
-    textAlign: "center",
-    fontSize: 16,
-    fontWeight: "800",
-    color: "#111827",
-  },
-  subTitle: { fontSize: 14, fontWeight: "800", color: "#111827" },
-  memberCard: {
-    borderRadius: 12,
-    backgroundColor: "#f3f4f6",
-    paddingHorizontal: 14,
-    paddingVertical: 14,
+  avatarText: { fontSize: 18, fontWeight: "800", color: "#4B5563" },
+  textDetails: { marginLeft: 12 },
+  userName: { fontSize: 17, fontWeight: "800", color: "#111827" },
+  userId: { fontSize: 13, color: "#9CA3AF", marginTop: 2 },
+  btnGroup: {
     flexDirection: "row",
-    alignItems: "center",
     gap: 10,
+    borderTopWidth: 1,
+    borderTopColor: "#F3F4F6",
+    paddingTop: 12,
   },
-  memberName: { fontSize: 15, fontWeight: "800", color: "#111827" },
-  memberMeta: {
-    marginTop: 4,
-    fontSize: 12,
-    fontWeight: "700",
-    color: "#6b7280",
+  approveBtn: {
+    flex: 1,
+    height: 44,
+    backgroundColor: "#111827",
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
   },
-  statusPill: {
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    borderRadius: 999,
-    backgroundColor: "#fff",
-    borderWidth: 1,
-    borderColor: "#e5e7eb",
+  approveBtnText: { color: "#fff", fontWeight: "800", fontSize: 15 },
+  rejectBtn: {
+    flex: 1,
+    height: 44,
+    backgroundColor: "#FEE2E2",
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
   },
-  statusPillText: { fontSize: 12, fontWeight: "900", color: "#111827" },
+  rejectBtnText: { color: "#EF4444", fontWeight: "800", fontSize: 15 },
+  emptyBox: { alignItems: "center", justifyContent: "center", marginTop: 100 },
+  emptyIcon: { fontSize: 40, marginBottom: 10 },
+  empty: { fontSize: 15, color: "#9CA3AF", fontWeight: "600" },
 });
