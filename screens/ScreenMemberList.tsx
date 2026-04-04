@@ -1,175 +1,201 @@
-import React from "react";
+import React, { useMemo } from "react";
 import {
+  SafeAreaView,
   View,
   Text,
-  StyleSheet,
-  FlatList,
   Pressable,
-  Alert,
-  SafeAreaView,
+  FlatList,
+  StyleSheet,
   Platform,
 } from "react-native";
-import { useGroups } from "../context/GroupContext";
 
-export default function ScreenReviewMembers({ navigation }: any) {
-  const { pendingRequests, handleReview } = useGroups();
+type GroupItem = { id: string; name: string; muted: boolean };
 
-  // 強制隱藏系統自動生成的 Header
-  React.useLayoutEffect(() => {
-    navigation.setOptions({
-      headerShown: false,
-    });
-  }, [navigation]);
+type Member = {
+  id: string;
+  name: string;
+  role: "管理員" | "成員";
+  status: "正常" | "可疑";
+};
 
-  const onConfirm = (req: any, approve: boolean) => {
-    const action = approve ? "通過" : "拒絕";
-    Alert.alert("審核操作", `確定要 ${action} ${req.userName} 的加入申請嗎？`, [
-      { text: "取消", style: "cancel" },
-      {
-        text: "確定",
-        style: approve ? "default" : "destructive",
-        onPress: () => handleReview(req.userId, req.groupId, approve),
-      },
-    ]);
-  };
+export default function ScreenMemberList({ navigation, route }: any) {
+  // 取得從上一頁傳過來的群組資訊
+  const group: GroupItem = route.params?.group || { name: "未知群組" };
+
+  // 模擬成員資料（之後可以從 API 取得）
+  const members: Member[] = useMemo(
+    () => [
+      { id: "m1", name: "爸爸", role: "管理員", status: "正常" },
+      { id: "m2", name: "媽媽", role: "管理員", status: "正常" },
+      { id: "m3", name: "弟弟", role: "成員", status: "可疑" },
+      { id: "m4", name: "我", role: "成員", status: "正常" },
+      { id: "m5", name: "阿嬤", role: "成員", status: "可疑" },
+    ],
+    []
+  );
+
+  const onBack = () => navigation.goBack();
 
   return (
-    <SafeAreaView style={styles.container}>
-      {/* 這是你自己寫的 Header，已經徹底移除了 Pressable 標籤 */}
+    <SafeAreaView style={styles.safe}>
+      {/* Header - 點擊標題可返回 */}
       <View style={styles.header}>
-        <View style={styles.headerTitleWrap}>
-          <Text style={styles.title}>新成員申請審核</Text>
-          <Text style={styles.subtitle}>
-            共有 {pendingRequests.length} 位待處理
-          </Text>
-        </View>
+        <Pressable 
+          style={styles.headerTitleContainer} 
+          onPress={onBack}
+          hitSlop={10}
+        >
+          <Text style={styles.headerTitle}>{group.name}</Text>
+        </Pressable>
+      </View>
+
+      <View style={styles.sectionHeader}>
+        <Text style={styles.subTitle}>群組成員 ({members.length})</Text>
       </View>
 
       <FlatList
-        data={pendingRequests}
-        keyExtractor={(item) => item.userId}
+        data={members}
+        keyExtractor={(item) => item.id}
         contentContainerStyle={styles.listContent}
+        ItemSeparatorComponent={() => <View style={styles.separator} />}
         renderItem={({ item }) => (
-          <View style={styles.requestCard}>
-            <View style={styles.userInfo}>
-              <View style={styles.avatar}>
-                <Text style={styles.avatarText}>{item.userName.charAt(0)}</Text>
-              </View>
-              <View style={styles.textDetails}>
-                <Text style={styles.userName}>{item.userName}</Text>
-                <Text style={styles.userId}>Line ID: {item.userId}</Text>
-              </View>
+          <View style={styles.memberCard}>
+            <View style={styles.avatar}>
+              <Text style={styles.avatarText}>{item.name.charAt(0)}</Text>
+            </View>
+            
+            <View style={styles.memberInfo}>
+              <Text style={styles.memberName}>{item.name}</Text>
+              <Text style={styles.memberRole}>{item.role}</Text>
             </View>
 
-            <View style={styles.btnGroup}>
-              <Pressable
-                onPress={() => onConfirm(item, false)}
-                style={styles.rejectBtn}
-              >
-                <Text style={styles.rejectBtnText}>拒絕</Text>
-              </Pressable>
-
-              <Pressable
-                onPress={() => onConfirm(item, true)}
-                style={styles.approveBtn}
-              >
-                <Text style={styles.approveBtnText}>通過</Text>
-              </Pressable>
+            <View style={[
+              styles.statusTag, 
+              item.status === "可疑" ? styles.statusAlert : styles.statusNormal
+            ]}>
+              <Text style={[
+                styles.statusText,
+                item.status === "可疑" ? styles.statusTextAlert : styles.statusTextNormal
+              ]}>
+                {item.status === "可疑" ? "⚠ 可疑" : "✓ 正常"}
+              </Text>
             </View>
           </View>
         )}
-        ListEmptyComponent={
-          <View style={styles.emptyBox}>
-            <Text style={styles.emptyIcon}>📄</Text>
-            <Text style={styles.empty}>目前沒有待審核的申請</Text>
-          </View>
-        }
       />
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F3F4F6" },
+  safe: { flex: 1, backgroundColor: "#fff" },
   header: {
+    height: 56,
     flexDirection: "row",
     alignItems: "center",
-    height: 60,
-    backgroundColor: "#fff",
+    justifyContent: "center",
     borderBottomWidth: 1,
-    borderBottomColor: "#E5E7EB",
-    // 關鍵：確保這層 Header 蓋在最上面
-    zIndex: 999,
-    elevation: 5,
+    borderBottomColor: "#f3f4f6",
   },
-  headerTitleWrap: { 
-    flex: 1, 
-    alignItems: "center", 
-    justifyContent: "center" 
+  headerTitleContainer: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
   },
-  title: {
-    fontSize: 18,
-    fontWeight: "900",
+  headerTitle: {
+    fontSize: 17,
+    fontWeight: "800",
     color: "#111827",
-    textAlign: "center",
   },
-  subtitle: {
-    fontSize: 12,
-    color: "#6B7280",
-    marginTop: 2,
-    textAlign: "center",
+  sectionHeader: {
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 10,
   },
-  listContent: { padding: 16 },
-  requestCard: {
-    backgroundColor: "#fff",
-    padding: 16,
-    borderRadius: 20,
-    marginBottom: 16,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
-    elevation: 3,
+  subTitle: {
+    fontSize: 14,
+    fontWeight: "800",
+    color: "#6b7280",
+    letterSpacing: 0.5,
   },
-  userInfo: { flexDirection: "row", alignItems: "center", marginBottom: 16 },
-  avatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: "#E5E7EB",
-    alignItems: "center",
-    justifyContent: "center",
+  listContent: {
+    paddingHorizontal: 16,
+    paddingBottom: 30,
   },
-  avatarText: { fontSize: 18, fontWeight: "800", color: "#4B5563" },
-  textDetails: { marginLeft: 12 },
-  userName: { fontSize: 17, fontWeight: "800", color: "#111827" },
-  userId: { fontSize: 13, color: "#9CA3AF", marginTop: 2 },
-  btnGroup: {
+  separator: {
+    height: 12,
+  },
+  memberCard: {
     flexDirection: "row",
-    gap: 10,
-    borderTopWidth: 1,
-    borderTopColor: "#F3F4F6",
-    paddingTop: 12,
+    alignItems: "center",
+    backgroundColor: "#f9fafb",
+    padding: 12,
+    borderRadius: 16,
+    ...Platform.select({
+      ios: {
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.05,
+        shadowRadius: 2,
+      },
+      android: {
+        elevation: 2,
+      },
+      web: {
+        boxShadow: "0px 1px 3px rgba(0,0,0,0.1)",
+      } as any,
+    }),
   },
-  approveBtn: {
-    flex: 1,
+  avatar: {
+    width: 44,
     height: 44,
-    backgroundColor: "#111827",
-    borderRadius: 12,
+    borderRadius: 22,
+    backgroundColor: "#e5e7eb",
     alignItems: "center",
     justifyContent: "center",
   },
-  approveBtnText: { color: "#fff", fontWeight: "800", fontSize: 15 },
-  rejectBtn: {
-    flex: 1,
-    height: 44,
-    backgroundColor: "#FEE2E2",
-    borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
+  avatarText: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#4b5563",
   },
-  rejectBtnText: { color: "#EF4444", fontWeight: "800", fontSize: 15 },
-  emptyBox: { alignItems: "center", justifyContent: "center", marginTop: 100 },
-  emptyIcon: { fontSize: 40, marginBottom: 10 },
-  empty: { fontSize: 15, color: "#9CA3AF", fontWeight: "600" },
+  memberInfo: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  memberName: {
+    fontSize: 16,
+    fontWeight: "800",
+    color: "#111827",
+  },
+  memberRole: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#9ca3af",
+    marginTop: 2,
+  },
+  statusTag: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 20,
+    borderWidth: 1,
+  },
+  statusNormal: {
+    backgroundColor: "#ecfdf5",
+    borderColor: "#10b981",
+  },
+  statusAlert: {
+    backgroundColor: "#fef2f2",
+    borderColor: "#ef4444",
+  },
+  statusText: {
+    fontSize: 12,
+    fontWeight: "800",
+  },
+  statusTextNormal: {
+    color: "#059669",
+  },
+  statusTextAlert: {
+    color: "#dc2626",
+  },
 });

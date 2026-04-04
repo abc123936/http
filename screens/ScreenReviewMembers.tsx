@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import {
   View,
   Text,
@@ -13,6 +13,17 @@ import { useGroups } from "../context/GroupContext";
 export default function ScreenReviewMembers({ navigation }: any) {
   const { pendingRequests, handleReview } = useGroups();
 
+  // 貼心功能：如果所有申請都處理完了，自動返回上一頁
+  useEffect(() => {
+    if (pendingRequests.length === 0) {
+      // 給使用者一點點時間看清「目前沒有申請」的狀態再返回
+      const timer = setTimeout(() => {
+        navigation.goBack();
+      }, 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [pendingRequests, navigation]);
+
   const onConfirm = (req: any, approve: boolean) => {
     const action = approve ? "通過" : "拒絕";
     Alert.alert("審核操作", `確定要 ${action} ${req.userName} 的加入申請嗎？`, [
@@ -20,16 +31,17 @@ export default function ScreenReviewMembers({ navigation }: any) {
       {
         text: "確定",
         style: approve ? "default" : "destructive",
-        onPress: () => handleReview(req.userId, req.groupId, approve),
+        onPress: () => {
+          // 呼叫 Context 的 handleReview，這會觸發成員名單更新
+          handleReview(req.userId, req.groupId, approve);
+        },
       },
     ]);
   };
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* 修正後的 Header：包含返回按鈕與置中標題 */}
       <View style={styles.header}>
-        {/* 左側返回按鈕 */}
         <Pressable 
           onPress={() => navigation.goBack()} 
           style={styles.backBtn}
@@ -38,7 +50,6 @@ export default function ScreenReviewMembers({ navigation }: any) {
           <Text style={styles.backIcon}>〈</Text>
         </Pressable>
 
-        {/* 中間標題區 */}
         <View style={styles.headerTitleWrap}>
           <Text style={styles.title}>新成員申請審核</Text>
           <Text style={styles.subtitle}>
@@ -46,7 +57,6 @@ export default function ScreenReviewMembers({ navigation }: any) {
           </Text>
         </View>
 
-        {/* 右側隱形區塊：用來平衡左側按鈕的寬度，確保標題置中 */}
         <View style={{ width: 44 }} />
       </View>
 
@@ -85,8 +95,9 @@ export default function ScreenReviewMembers({ navigation }: any) {
         )}
         ListEmptyComponent={
           <View style={styles.emptyBox}>
-            <Text style={styles.emptyIcon}>📄</Text>
+            <Text style={styles.emptyIcon}>✅</Text>
             <Text style={styles.empty}>目前沒有待審核的申請</Text>
+            <Text style={styles.autoBackText}>即將自動返回...</Text>
           </View>
         }
       />
@@ -98,9 +109,9 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#F3F4F6" },
   header: {
     height: 70,
-    flexDirection: "row", // 橫向排列按鈕與標題
+    flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between", // 左右撐開
+    justifyContent: "space-between",
     backgroundColor: "#fff",
     borderBottomWidth: 1,
     borderBottomColor: "#E5E7EB",
@@ -187,4 +198,5 @@ const styles = StyleSheet.create({
   emptyBox: { alignItems: "center", justifyContent: "center", marginTop: 100 },
   emptyIcon: { fontSize: 40, marginBottom: 10 },
   empty: { fontSize: 15, color: "#9CA3AF", fontWeight: "600" },
+  autoBackText: { fontSize: 12, color: "#9CA3AF", marginTop: 8 },
 });
