@@ -12,30 +12,19 @@ import {
   TouchableOpacity,
   Platform,
 } from "react-native";
-
-type GroupItem = {
-  id: string;
-  name: string;
-  muted: boolean;
-};
+import { useGroups } from "../context/GroupContext";
 
 export default function ScreenGroupList({ navigation }: any) {
-  const [groups, setGroups] = useState<GroupItem[]>([
-    { id: "1", name: "阿嬤家群組", muted: false },
-    { id: "2", name: "溫暖的小窩", muted: true },
-    { id: "3", name: "朋友家", muted: false },
-  ]);
-
+  const { groups, setGroups } = useGroups();
   const [query, setQuery] = useState("");
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [menuGroupId, setMenuGroupId] = useState<string | null>(null);
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return groups;
     return groups.filter((g) => g.name.toLowerCase().includes(q));
   }, [groups, query]);
-
-  // 三點選單狀態
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [menuGroupId, setMenuGroupId] = useState<string | null>(null);
 
   const openMenu = (groupId: string) => {
     setMenuGroupId(groupId);
@@ -49,51 +38,39 @@ export default function ScreenGroupList({ navigation }: any) {
 
   const getGroup = () => groups.find((g) => g.id === menuGroupId);
 
-  // 切換通知開關
   const toggleMute = () => {
     const g = getGroup();
     if (!g) return;
-    const nextMuted = !g.muted;
+    
     setGroups((prev) =>
-      prev.map((x) => (x.id === g.id ? { ...x, muted: nextMuted } : x)),
+      prev.map((x) => (x.id === g.id ? { ...x, muted: !x.muted } : x))
     );
     closeMenu();
-    Alert.alert("推播設定", nextMuted ? "已關閉推播" : "已開啟推播");
+    Alert.alert("推播設定", "已成功更改設定");
   };
 
-  // --- 修正後的退出群組邏輯 ---
   const leaveGroup = () => {
     const g = getGroup();
     if (!g) return;
-
-    // 先存下要處理的資訊，避免 Modal 關閉時 menuGroupId 變成 null
     const targetId = g.id;
     const targetName = g.name;
 
-    // 1. 先關閉 Modal (避免 UI 衝突)
     setMenuOpen(false);
-
-    // 2. 稍微延遲後再彈出 Alert (確保網頁版順暢)
     setTimeout(() => {
-      Alert.alert(
-        "退出群組",
-        `確定要退出「${targetName}」嗎？`,
-        [
-          { text: "取消", style: "cancel", onPress: () => setMenuGroupId(null) },
-          {
-            text: "確定退出",
-            style: "destructive",
-            onPress: () => {
-              setGroups((prev) => prev.filter((x) => x.id !== targetId));
-              setMenuGroupId(null);
-            },
+      Alert.alert("退出群組", `確定要退出「${targetName}」嗎？`, [
+        { text: "取消", style: "cancel", onPress: () => setMenuGroupId(null) },
+        {
+          text: "確定退出",
+          style: "destructive",
+          onPress: () => {
+            setGroups((prev) => prev.filter((x) => x.id !== targetId));
+            setMenuGroupId(null);
           },
-        ]
-      );
+        },
+      ]);
     }, Platform.OS === "web" ? 100 : 10);
   };
 
-  // 進入審核頁面 (由選單觸發)
   const reviewMembers = () => {
     const g = getGroup();
     if (!g) return;
@@ -101,22 +78,11 @@ export default function ScreenGroupList({ navigation }: any) {
     navigation.navigate("ReviewMembers", { group: g });
   };
 
-  // 進入成員列表 (點擊橫幅觸發)
-  const openMembers = (g: GroupItem) => {
-    navigation.navigate("MemberList", { group: g });
-  };
-
-  const renderHeader = (title: string) => (
-    <View style={styles.header}>
-      <View style={styles.headerTitleContainer}>
-        <Text style={styles.headerTitle}>{title}</Text>
-      </View>
-    </View>
-  );
-
   return (
     <SafeAreaView style={styles.safe}>
-      {renderHeader("查詢群組")}
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>查詢群組</Text>
+      </View>
 
       <View style={styles.searchWrap}>
         <View style={styles.searchBox}>
@@ -126,47 +92,36 @@ export default function ScreenGroupList({ navigation }: any) {
             onChangeText={setQuery}
             placeholder="搜尋群組"
             placeholderTextColor="#9ca3af"
-            style={[
-              styles.searchInput,
-              Platform.OS === "web" && ({ outlineStyle: "none" } as any),
-            ]}
-            autoCorrect={false}
+            style={styles.searchInput}
           />
-          {query.length > 0 && (
-            <Pressable onPress={() => setQuery("")} hitSlop={10}>
-              <Text style={styles.searchClear}>✕</Text>
-            </Pressable>
-          )}
         </View>
       </View>
 
       <FlatList
         data={filtered}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={{ padding: 16, paddingTop: 10, paddingBottom: 16 }}
+        contentContainerStyle={styles.listPadding}
         renderItem={({ item }) => (
-          <Pressable onPress={() => openMembers(item)} style={styles.card}>
+          <Pressable 
+            onPress={() => navigation.navigate("MemberList", { group: item })} 
+            style={styles.card}
+          >
             <Text style={styles.groupName}>{item.name}</Text>
-
             <View style={styles.rightIcons}>
-              {/* 喇叭按鈕 */}
               <Pressable
                 onPress={(e) => {
-                  e.stopPropagation(); // 阻止點擊整條 card
-                  Alert.alert(
-                    "通知狀態",
-                    item.muted ? "目前：推播已關閉" : "目前：推播已開啟"
-                  );
+                  e.stopPropagation();
+                  Alert.alert("通知狀態", item.muted ? "推播已關閉" : "推播已開啟");
                 }}
                 style={styles.iconBtn}
               >
-                <Bell muted={item.muted} />
+                {/* 這裡確保 item.muted 是 boolean */}
+                <Text style={{ fontSize: 18 }}>{item.muted ? "🔇" : "🔈"}</Text>
               </Pressable>
 
-              {/* 選單按鈕 */}
               <Pressable
                 onPress={(e) => {
-                  e.stopPropagation(); // 阻止點擊整條 card
+                  e.stopPropagation();
                   openMenu(item.id);
                 }}
                 style={styles.iconBtn}
@@ -178,41 +133,26 @@ export default function ScreenGroupList({ navigation }: any) {
         )}
       />
 
-      <Modal
-        visible={menuOpen}
-        transparent
-        animationType="fade"
-        onRequestClose={closeMenu}
-      >
+      <Modal visible={menuOpen} transparent animationType="fade">
         <Pressable style={styles.modalBackdrop} onPress={closeMenu}>
           <View style={{ flex: 1 }} />
         </Pressable>
-
         <View style={styles.sheet}>
           <View style={styles.sheetHandle} />
-
           <TouchableOpacity style={styles.sheetItem} onPress={toggleMute}>
             <Text style={styles.sheetText}>
               {getGroup()?.muted ? "開啟推播" : "關閉推播"}
             </Text>
           </TouchableOpacity>
-
           <View style={styles.sheetDivider} />
-
           <TouchableOpacity style={styles.sheetItem} onPress={reviewMembers}>
             <Text style={styles.sheetText}>審核新成員是否加入群組</Text>
           </TouchableOpacity>
-
           <View style={styles.sheetDivider} />
-
           <TouchableOpacity style={styles.sheetItem} onPress={leaveGroup}>
             <Text style={[styles.sheetText, { color: "#ef4444" }]}>退出群組</Text>
           </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.sheetItem, { marginTop: 8 }]}
-            onPress={closeMenu}
-          >
+          <TouchableOpacity style={[styles.sheetItem, { marginTop: 8 }]} onPress={closeMenu}>
             <Text style={[styles.sheetText, { color: "#6b7280" }]}>取消</Text>
           </TouchableOpacity>
         </View>
@@ -221,24 +161,9 @@ export default function ScreenGroupList({ navigation }: any) {
   );
 }
 
-function Bell({ muted }: { muted: boolean }) {
-  return (
-    <View style={styles.bellWrap}>
-      <Text style={styles.bellText}>{muted ? "🔇" : "🔈"}</Text>
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: "#fff" },
-  header: {
-    height: 56,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 12,
-  },
-  headerTitleContainer: { flex: 1, alignItems: "center", justifyContent: "center" },
+  header: { height: 56, justifyContent: "center", alignItems: "center" },
   headerTitle: { fontSize: 16, fontWeight: "800", color: "#111827" },
   searchWrap: { paddingHorizontal: 16, paddingBottom: 6 },
   searchBox: {
@@ -252,7 +177,7 @@ const styles = StyleSheet.create({
   },
   searchIcon: { fontSize: 16 },
   searchInput: { flex: 1, fontSize: 14, color: "#111827" },
-  searchClear: { fontSize: 16, color: "#6b7280", fontWeight: "800" },
+  listPadding: { padding: 16, paddingTop: 10 },
   card: {
     height: 60,
     borderRadius: 12,
@@ -267,8 +192,6 @@ const styles = StyleSheet.create({
   rightIcons: { flexDirection: "row", alignItems: "center", gap: 8 },
   iconBtn: { padding: 6 },
   icon: { fontSize: 18, color: "#111827" },
-  bellWrap: { width: 24, height: 24, alignItems: "center", justifyContent: "center" },
-  bellText: { fontSize: 18 },
   modalBackdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.3)" },
   sheet: {
     position: "absolute",
