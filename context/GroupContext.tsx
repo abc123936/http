@@ -9,15 +9,15 @@ interface PendingMember { userId: string; userName: string; groupId: string; }
 interface GroupContextType {
   groups: Group[];
   setGroups: (update: Group[] | ((prev: Group[]) => Group[])) => void;
-  addGroup: (name: string) => Promise<Group>; // 👈 補上這行解決紅線
-  joinGroupById: (id: string) => Promise<boolean>; // 👈 補上這行解決紅線
+  addGroup: (groupName: string) => Promise<Group>;
+  joinGroupById: (id: string) => Promise<boolean>;
   pendingRequests: PendingMember[];
   handleReview: (userId: string, groupId: string, isApprove: boolean) => Promise<void>;
   getGroupMembers: (groupId: string) => Member[];
 }
 
 const GroupContext = createContext<GroupContextType | undefined>(undefined);
-const STORAGE_KEY = "fc_groups_v2";
+const STORAGE_KEY = "fc_groups_v3"; // 🌟 再次更換 Key 徹底清空之前的「我瘋嗷嗷」
 
 export const GroupProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [groups, _setGroups] = useState<Group[]>([]);
@@ -25,6 +25,7 @@ export const GroupProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     { userId: "user_01", userName: "小明", groupId: "7CD9QCC668HP" },
   ]);
 
+  // 同步更新與存檔
   const setGroups = useCallback((update: Group[] | ((prev: Group[]) => Group[])) => {
     _setGroups((prev) => {
       const next = typeof update === "function" ? update(prev) : update;
@@ -39,10 +40,10 @@ export const GroupProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     });
   }, []);
 
-  const addGroup = async (name: string) => {
+  const addGroup = async (groupName: string) => {
     const newGroup: Group = {
-      id: Math.random().toString(36).substring(2, 10).toUpperCase(),
-      name,
+      id: Math.random().toString(36).substring(2, 9).toUpperCase(),
+      name: groupName,
       status: "正常",
       createdAt: Date.now(),
       muted: false,
@@ -52,16 +53,13 @@ export const GroupProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return newGroup;
   };
 
-  const joinGroupById = async (id: string) => groups.some(g => g.id === id);
-
   const handleReview = async (userId: string, groupId: string, isApprove: boolean) => {
     if (isApprove) {
       const applicant = pendingRequests.find(r => r.userId === userId);
       if (applicant) {
         setGroups(prev => prev.map(g => {
           if (g.id === groupId) {
-            const exists = g.members.some(m => m.userId === userId);
-            if (exists) return g;
+            if (g.members.some(m => m.userId === userId)) return g;
             return { ...g, members: [...g.members, { userId: applicant.userId, userName: applicant.userName, role: "成員", status: "正常" }] };
           }
           return g;
@@ -71,6 +69,7 @@ export const GroupProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setPendingRequests(prev => prev.filter(r => r.userId !== userId));
   };
 
+  const joinGroupById = async (id: string) => groups.some(g => g.id === id);
   const getGroupMembers = (groupId: string) => groups.find(g => g.id === groupId)?.members || [];
 
   return (

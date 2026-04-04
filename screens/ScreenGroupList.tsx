@@ -1,15 +1,13 @@
-import React, { useMemo, useState, useEffect } from "react";
+import React, { useMemo, useState } from "react";
 import { SafeAreaView, StyleSheet, Text, View, Pressable, FlatList, Alert, TextInput, Modal, TouchableOpacity, Platform } from "react-native";
 import { useGroups } from "../context/GroupContext";
 
 export default function ScreenGroupList({ navigation }: any) {
-  // 從 Context 獲取資料與更新函式
   const { groups, setGroups } = useGroups();
   const [query, setQuery] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuGroupId, setMenuGroupId] = useState<string | null>(null);
 
-  // 當 groups 改變時，Filtered 會重新計算
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     return q ? groups.filter((g) => g.name.toLowerCase().includes(q)) : groups;
@@ -17,131 +15,70 @@ export default function ScreenGroupList({ navigation }: any) {
 
   const openMenu = (id: string) => { setMenuGroupId(id); setMenuOpen(true); };
   const closeMenu = () => { setMenuOpen(false); setMenuGroupId(null); };
-  const getGroup = () => groups.find((g) => g.id === menuGroupId);
-
-  const toggleMute = () => {
-    const g = getGroup();
-    if (!g) return;
-    setGroups((prev) => prev.map((x) => (x.id === g.id ? { ...x, muted: !x.muted } : x)));
-    closeMenu();
-  };
 
   const leaveGroup = () => {
-    const g = getGroup();
+    const g = groups.find(x => x.id === menuGroupId);
     if (!g) return;
     const tid = g.id;
     const tname = g.name;
-
-    // 先關閉選單，再彈出確認
     closeMenu();
+    
+    const doDelete = () => setGroups((prev) => prev.filter((x) => x.id !== tid));
 
-    setTimeout(() => {
-      Alert.alert("確認操作", `確定要退出「${tname}」嗎？`, [
+    if (Platform.OS === 'web') {
+      if (window.confirm(`確定退出「${tname}」？`)) doDelete();
+    } else {
+      Alert.alert("確認", `確定退出「${tname}」？`, [
         { text: "取消", style: "cancel" },
-        { 
-          text: "確定退出", 
-          style: "destructive", 
-          onPress: () => {
-            // 🌟 這裡執行後，Context 裡的 AsyncStorage 會同步存檔
-            setGroups((prev) => {
-              const next = prev.filter((x) => x.id !== tid);
-              return [...next]; // 展開運算子確保引用改變，觸發渲染
-            });
-          } 
-        },
+        { text: "確定", style: "destructive", onPress: doDelete },
       ]);
-    }, 100);
+    }
   };
 
   return (
     <SafeAreaView style={styles.safe}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>查詢群組</Text>
-      </View>
-
+      <View style={styles.header}><Text style={styles.headerTitle}>查詢群組</Text></View>
       <View style={styles.searchWrap}>
         <View style={styles.searchBox}>
-          <Text style={{ fontSize: 16 }}>🔍</Text>
-          <TextInput 
-            value={query} 
-            onChangeText={setQuery} 
-            placeholder="搜尋群組" 
-            style={styles.searchInput} 
-            placeholderTextColor="#9ca3af"
-          />
+          <Text>🔍</Text>
+          <TextInput value={query} onChangeText={setQuery} placeholder="搜尋群組" style={styles.searchInput} placeholderTextColor="#9ca3af" />
         </View>
       </View>
-
       <FlatList
         data={filtered}
-        // 🌟 關鍵：extraData 讓 FlatList 監控全域 groups 的變動
-        extraData={groups} 
         keyExtractor={(item) => item.id}
+        extraData={groups} // 🌟 強制刷新
         contentContainerStyle={styles.listPadding}
         renderItem={({ item }) => (
-          <Pressable 
-            onPress={() => navigation.navigate("MemberList", { group: item })} 
-            style={styles.card}
-          >
+          <Pressable onPress={() => navigation.navigate("MemberList", { group: item })} style={styles.card}>
             <Text style={styles.groupName}>{item.name}</Text>
             <View style={styles.rightIcons}>
-              {/* 快速切換通知 */}
-              <Pressable 
-                onPress={(e) => { 
-                  e.stopPropagation(); 
-                  setGroups(prev => prev.map(x => x.id === item.id ? {...x, muted: !x.muted} : x)); 
-                }} 
-                style={styles.iconBtn}
-              >
+              <Pressable onPress={(e) => { e.stopPropagation(); setGroups(prev => prev.map(x => x.id === item.id ? {...x, muted: !x.muted} : x)); }} style={styles.iconBtn}>
                 <Text style={{ fontSize: 18 }}>{item.muted ? "🔇" : "🔈"}</Text>
               </Pressable>
-
-              {/* 選單 */}
-              <Pressable 
-                onPress={(e) => { e.stopPropagation(); openMenu(item.id); }} 
-                style={styles.iconBtn}
-              >
+              <Pressable onPress={(e) => { e.stopPropagation(); openMenu(item.id); }} style={styles.iconBtn}>
                 <Text style={styles.icon}>⋯</Text>
               </Pressable>
             </View>
           </Pressable>
         )}
-        ListEmptyComponent={
-          <View style={styles.emptyBox}>
-            <Text style={{ color: "#9ca3af" }}>目前沒有群組，請先創建</Text>
-          </View>
-        }
       />
-
-      <Modal visible={menuOpen} transparent animationType="fade" onRequestClose={closeMenu}>
-        <Pressable style={styles.modalBackdrop} onPress={closeMenu}>
-          <View style={{ flex: 1 }} />
-        </Pressable>
+      <Modal visible={menuOpen} transparent animationType="fade">
+        <Pressable style={styles.modalBackdrop} onPress={closeMenu}><View style={{ flex: 1 }} /></Pressable>
         <View style={styles.sheet}>
           <View style={styles.sheetHandle} />
-          
-          <TouchableOpacity style={styles.sheetItem} onPress={toggleMute}>
-            <Text style={styles.sheetText}>{getGroup()?.muted ? "開啟推播" : "關閉推播"}</Text>
+          <TouchableOpacity style={styles.sheetItem} onPress={() => { setGroups(prev => prev.map(x => x.id === menuGroupId ? {...x, muted: !x.muted} : x)); closeMenu(); }}>
+            <Text style={styles.sheetText}>{groups.find(x => x.id === menuGroupId)?.muted ? "開啟推播" : "關閉推播"}</Text>
           </TouchableOpacity>
-          
           <View style={styles.sheetDivider} />
-          
-          <TouchableOpacity 
-            style={styles.sheetItem} 
-            onPress={() => { closeMenu(); navigation.navigate("ReviewMembers", { group: getGroup() }); }}
-          >
+          <TouchableOpacity style={styles.sheetItem} onPress={() => { closeMenu(); navigation.navigate("ReviewMembers", { group: groups.find(x => x.id === menuGroupId) }); }}>
             <Text style={styles.sheetText}>審核新成員</Text>
           </TouchableOpacity>
-          
           <View style={styles.sheetDivider} />
-          
           <TouchableOpacity style={styles.sheetItem} onPress={leaveGroup}>
             <Text style={[styles.sheetText, { color: "#ef4444" }]}>退出群組</Text>
           </TouchableOpacity>
-          
-          <TouchableOpacity style={[styles.sheetItem, { marginTop: 8 }]} onPress={closeMenu}>
-            <Text style={[styles.sheetText, { color: "#6b7280" }]}>取消</Text>
-          </TouchableOpacity>
+          <TouchableOpacity style={[styles.sheetItem, { marginTop: 8 }]} onPress={closeMenu}><Text style={[styles.sheetText, { color: "#6b7280" }]}>取消</Text></TouchableOpacity>
         </View>
       </Modal>
     </SafeAreaView>
@@ -152,20 +89,19 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: "#fff" },
   header: { height: 56, justifyContent: "center", alignItems: "center", borderBottomWidth: 1, borderBottomColor: "#f3f4f6" },
   headerTitle: { fontSize: 16, fontWeight: "800", color: "#111827" },
-  searchWrap: { padding: 16 },
+  searchWrap: { paddingHorizontal: 16, paddingVertical: 12 },
   searchBox: { height: 46, borderRadius: 12, backgroundColor: "#f3f4f6", paddingHorizontal: 12, flexDirection: "row", alignItems: "center", gap: 8 },
   searchInput: { flex: 1, fontSize: 14, color: "#111827" },
-  listPadding: { paddingHorizontal: 16, paddingBottom: 20 },
-  card: { height: 64, borderRadius: 16, backgroundColor: "#f9fafb", paddingHorizontal: 16, marginBottom: 12, flexDirection: "row", alignItems: "center", justifyContent: "space-between", borderWidth: 1, borderColor: "#f3f4f6" },
+  listPadding: { paddingHorizontal: 16 },
+  card: { height: 60, borderRadius: 12, backgroundColor: "#f3f4f6", paddingHorizontal: 16, marginBottom: 12, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   groupName: { fontSize: 15, fontWeight: "700", color: "#111827" },
-  rightIcons: { flexDirection: "row", alignItems: "center", gap: 10 },
-  iconBtn: { padding: 8 },
-  icon: { fontSize: 20, color: "#4b5563" },
-  modalBackdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)" },
-  sheet: { position: "absolute", left: 0, right: 0, bottom: 0, padding: 16, paddingBottom: 30, backgroundColor: "#fff", borderTopLeftRadius: 24, borderTopRightRadius: 24 },
-  sheetHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: "#e5e7eb", alignSelf: "center", marginBottom: 16 },
-  sheetItem: { paddingVertical: 16, alignItems: "center" },
-  sheetText: { fontSize: 16, fontWeight: "700", color: "#111827" },
+  rightIcons: { flexDirection: "row", alignItems: "center", gap: 8 },
+  iconBtn: { padding: 6 },
+  icon: { fontSize: 18, color: "#111827" },
+  modalBackdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.3)" },
+  sheet: { position: "absolute", left: 0, right: 0, bottom: 0, padding: 12, paddingBottom: 24, backgroundColor: "#fff", borderTopLeftRadius: 20, borderTopRightRadius: 20 },
+  sheetHandle: { width: 40, height: 5, borderRadius: 999, backgroundColor: "#e5e7eb", alignSelf: "center", marginBottom: 12 },
+  sheetItem: { paddingVertical: 14, paddingHorizontal: 12, borderRadius: 12 },
+  sheetText: { fontSize: 15, fontWeight: "800", color: "#111827" },
   sheetDivider: { height: 1, backgroundColor: "#f3f4f6" },
-  emptyBox: { alignItems: "center", marginTop: 100 }
 });
