@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React from "react";
 import {
   View,
   Text,
@@ -7,40 +7,51 @@ import {
   Pressable,
   Alert,
   SafeAreaView,
+  Platform,
 } from "react-native";
 import { useGroups } from "../context/GroupContext";
 
 export default function ScreenReviewMembers({ navigation }: any) {
   const { pendingRequests, handleReview } = useGroups();
 
-  // 貼心功能：如果所有申請都處理完了，自動返回上一頁
-  useEffect(() => {
-    if (pendingRequests.length === 0) {
-      // 給使用者一點點時間看清「目前沒有申請」的狀態再返回
-      const timer = setTimeout(() => {
-        navigation.goBack();
-      }, 1500);
-      return () => clearTimeout(timer);
-    }
-  }, [pendingRequests, navigation]);
-
   const onConfirm = (req: any, approve: boolean) => {
     const action = approve ? "通過" : "拒絕";
-    Alert.alert("審核操作", `確定要 ${action} ${req.userName} 的加入申請嗎？`, [
-      { text: "取消", style: "cancel" },
-      {
-        text: "確定",
-        style: approve ? "default" : "destructive",
-        onPress: () => {
-          // 呼叫 Context 的 handleReview，這會觸發成員名單更新
-          handleReview(req.userId, req.groupId, approve);
+    
+    // 根據平台選擇確認方式
+    if (Platform.OS === "web") {
+      const confirm = window.confirm(`確定要${action} ${req.userName} 的加入申請嗎？`);
+      if (confirm) {
+        handleReview(req.userId, req.groupId, approve);
+        checkAndRedirect();
+      }
+    } else {
+      Alert.alert("審核操作", `確定要 ${action} ${req.userName} 的加入申請嗎？`, [
+        { text: "取消", style: "cancel" },
+        {
+          text: "確定",
+          style: approve ? "default" : "destructive",
+          onPress: async () => {
+            // 🌟 確保 Context 處理完畢
+            await handleReview(req.userId, req.groupId, approve);
+            checkAndRedirect();
+          },
         },
-      },
-    ]);
+      ]);
+    }
+  };
+
+  // 檢查是否還有剩餘申請，若無則返回
+  const checkAndRedirect = () => {
+    if (pendingRequests.length <= 1) {
+      setTimeout(() => {
+        navigation.goBack();
+      }, 800);
+    }
   };
 
   return (
     <SafeAreaView style={styles.container}>
+      {/* 自定義 Header */}
       <View style={styles.header}>
         <Pressable 
           onPress={() => navigation.goBack()} 
@@ -97,7 +108,6 @@ export default function ScreenReviewMembers({ navigation }: any) {
           <View style={styles.emptyBox}>
             <Text style={styles.emptyIcon}>✅</Text>
             <Text style={styles.empty}>目前沒有待審核的申請</Text>
-            <Text style={styles.autoBackText}>即將自動返回...</Text>
           </View>
         }
       />
@@ -108,7 +118,7 @@ export default function ScreenReviewMembers({ navigation }: any) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#F3F4F6" },
   header: {
-    height: 70,
+    height: 60,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
@@ -134,7 +144,7 @@ const styles = StyleSheet.create({
     justifyContent: "center" 
   },
   title: {
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: "900",
     color: "#111827",
     textAlign: "center",
@@ -198,5 +208,4 @@ const styles = StyleSheet.create({
   emptyBox: { alignItems: "center", justifyContent: "center", marginTop: 100 },
   emptyIcon: { fontSize: 40, marginBottom: 10 },
   empty: { fontSize: 15, color: "#9CA3AF", fontWeight: "600" },
-  autoBackText: { fontSize: 12, color: "#9CA3AF", marginTop: 8 },
 });
