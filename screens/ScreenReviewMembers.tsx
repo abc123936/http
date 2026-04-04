@@ -35,7 +35,7 @@ export default function ScreenReviewMembers({ navigation }: any) {
       {/* 這裡是唯一的 Header 來源 */}
       <View style={styles.header}>
         <View style={styles.headerTitleWrap}>
-          <Text style={styles.title}>測試更新 123</Text>
+          <Text style={styles.title}>新成員申請審核</Text>
           <Text style={styles.subtitle}>
             共有 {pendingRequests.length} 位待處理
           </Text>
