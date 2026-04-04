@@ -18,11 +18,6 @@ type Member = {
 
 export default function ScreenMemberList({ navigation, route }: any) {
   const g: GroupItem = route.params.group;
-  const [tab] = useState<"home" | "join" | "me">("home"); // 你如果不需要可刪
-
-  const openMembers = (g: GroupItem) => {
-    navigation.navigate("MemberList", { group: g });
-  };
 
   const members: Member[] = useMemo(
     () => [
@@ -35,20 +30,14 @@ export default function ScreenMemberList({ navigation, route }: any) {
     [],
   );
 
-  const onClose = () => navigation.goBack();
   const onBack = () => navigation.goBack();
 
   return (
     <SafeAreaView style={styles.safe}>
+      {/* Header - 左右按鈕已移除，標題置中 */}
       <View style={styles.header}>
-        <Pressable style={styles.headerBtn} onPress={onBack} hitSlop={12}>
-          <Text style={styles.headerIcon}>⌄</Text>
-        </Pressable>
-
-        <Text style={styles.headerTitle}>{g.name}</Text>
-
-        <Pressable style={styles.headerBtn} onPress={onClose} hitSlop={12}>
-          <Text style={styles.headerIcon}>✕</Text>
+        <Pressable style={styles.headerTitleContainer} onPress={onBack}>
+          <Text style={styles.headerTitle}>{g.name}</Text>
         </Pressable>
       </View>
 
@@ -78,7 +67,6 @@ export default function ScreenMemberList({ navigation, route }: any) {
           </View>
         )}
       />
-      {/* 注意：不要在這裡放底部 nav，Tabs 會統一顯示 */}
     </SafeAreaView>
   );
 }
@@ -89,12 +77,15 @@ const styles = StyleSheet.create({
     height: 56,
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "center",
     paddingHorizontal: 12,
   },
-  headerBtn: { width: 44, alignItems: "center", justifyContent: "center" },
-  headerIcon: { fontSize: 22, fontWeight: "900", color: "#111827" },
-  headerTitle: {
+  headerTitleContainer: {
     flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  headerTitle: {
     textAlign: "center",
     fontSize: 16,
     fontWeight: "800",

@@ -10,6 +10,7 @@ import {
   TextInput,
   Modal,
   TouchableOpacity,
+  Platform,
 } from "react-native";
 
 type GroupItem = {
@@ -83,25 +84,16 @@ export default function ScreenGroupList({ navigation }: any) {
     navigation.navigate("ReviewMembers", { group: g });
   };
 
-  // Header：群組列表頁的 back/close（這頁通常不用回上一頁，就先提示）
-  const onClose = () => Alert.alert("關閉", "目前已在群組列表頁");
-  const onBack = () => Alert.alert("返回", "目前已在群組列表頁");
-
   const openMembers = (g: GroupItem) => {
     navigation.navigate("MemberList", { group: g });
   };
 
+  // 修改後的 Header：拿掉了左右按鈕，只留標題置中
   const renderHeader = (title: string) => (
     <View style={styles.header}>
-      <Pressable style={styles.headerBtn} onPress={onBack} hitSlop={12}>
-        <Text style={styles.headerIcon}>⌄</Text>
-      </Pressable>
-
-      <Text style={styles.headerTitle}>{title}</Text>
-
-      <Pressable style={styles.headerBtn} onPress={onClose} hitSlop={12}>
-        <Text style={styles.headerIcon}>✕</Text>
-      </Pressable>
+      <View style={styles.headerTitleContainer}>
+        <Text style={styles.headerTitle}>{title}</Text>
+      </View>
     </View>
   );
 
@@ -117,7 +109,11 @@ export default function ScreenGroupList({ navigation }: any) {
             onChangeText={setQuery}
             placeholder="搜尋群組"
             placeholderTextColor="#9ca3af"
-            style={styles.searchInput}
+            // 針對網頁版優化輸入框
+            style={[
+              styles.searchInput,
+              Platform.OS === "web" && ({ outlineStyle: "none" } as any),
+            ]}
             autoCorrect={false}
           />
           {query.length > 0 ? (
@@ -174,7 +170,7 @@ export default function ScreenGroupList({ navigation }: any) {
         onRequestClose={closeMenu}
       >
         <Pressable style={styles.modalBackdrop} onPress={closeMenu}>
-          <View />
+          <View style={{ flex: 1 }} />
         </Pressable>
 
         <View style={styles.sheet}>
@@ -226,16 +222,19 @@ const styles = StyleSheet.create({
     height: 56,
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "center",
     paddingHorizontal: 12,
   },
-  headerBtn: { width: 44, alignItems: "center", justifyContent: "center" },
-  headerIcon: { fontSize: 22, fontWeight: "900", color: "#111827" },
-  headerTitle: {
+  headerTitleContainer: {
     flex: 1,
-    textAlign: "center",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  headerTitle: {
     fontSize: 16,
     fontWeight: "800",
     color: "#111827",
+    textAlign: "center",
   },
   searchWrap: { paddingHorizontal: 16, paddingBottom: 6 },
   searchBox: {
@@ -248,7 +247,14 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   searchIcon: { fontSize: 16 },
-  searchInput: { flex: 1, fontSize: 14, color: "#111827" },
+  searchInput: { 
+    flex: 1, 
+    fontSize: 14, 
+    color: "#111827",
+    ...Platform.select({
+      web: { cursor: "text" } as any
+    })
+  },
   searchClear: { fontSize: 16, color: "#6b7280", fontWeight: "800" },
   card: {
     height: 60,
