@@ -13,11 +13,6 @@ import { useGroups } from "../context/GroupContext";
 export default function ScreenReviewMembers({ navigation }: any) {
   const { pendingRequests, handleReview } = useGroups();
 
-  // 強制這一頁關掉所有導航層級的 Header
-  React.useLayoutEffect(() => {
-    navigation.setOptions({ headerShown: false });
-  }, [navigation]);
-
   const onConfirm = (req: any, approve: boolean) => {
     const action = approve ? "通過" : "拒絕";
     Alert.alert("審核操作", `確定要 ${action} ${req.userName} 的加入申請嗎？`, [
@@ -32,14 +27,27 @@ export default function ScreenReviewMembers({ navigation }: any) {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* 這裡是唯一的 Header 來源 */}
+      {/* 修正後的 Header：包含返回按鈕與置中標題 */}
       <View style={styles.header}>
+        {/* 左側返回按鈕 */}
+        <Pressable 
+          onPress={() => navigation.goBack()} 
+          style={styles.backBtn}
+          hitSlop={20}
+        >
+          <Text style={styles.backIcon}>〈</Text>
+        </Pressable>
+
+        {/* 中間標題區 */}
         <View style={styles.headerTitleWrap}>
           <Text style={styles.title}>新成員申請審核</Text>
           <Text style={styles.subtitle}>
             共有 {pendingRequests.length} 位待處理
           </Text>
         </View>
+
+        {/* 右側隱形區塊：用來平衡左側按鈕的寬度，確保標題置中 */}
+        <View style={{ width: 44 }} />
       </View>
 
       <FlatList
@@ -90,13 +98,27 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#F3F4F6" },
   header: {
     height: 70,
-    backgroundColor: "#fff",
+    flexDirection: "row", // 橫向排列按鈕與標題
     alignItems: "center",
-    justifyContent: "center",
+    justifyContent: "space-between", // 左右撐開
+    backgroundColor: "#fff",
     borderBottomWidth: 1,
     borderBottomColor: "#E5E7EB",
+    paddingHorizontal: 8,
+  },
+  backBtn: {
+    width: 44,
+    height: 44,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  backIcon: {
+    fontSize: 22,
+    fontWeight: "300",
+    color: "#111827",
   },
   headerTitleWrap: { 
+    flex: 1, 
     alignItems: "center", 
     justifyContent: "center" 
   },
@@ -104,11 +126,13 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "900",
     color: "#111827",
+    textAlign: "center",
   },
   subtitle: {
     fontSize: 12,
     color: "#6B7280",
     marginTop: 2,
+    textAlign: "center",
   },
   listContent: { padding: 16 },
   requestCard: {
@@ -116,6 +140,11 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 20,
     marginBottom: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 3,
   },
   userInfo: { flexDirection: "row", alignItems: "center", marginBottom: 16 },
   avatar: {
