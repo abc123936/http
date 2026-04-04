@@ -33,7 +33,7 @@ export default function ScreenGroupList({ navigation }: any) {
     return groups.filter((g) => g.name.toLowerCase().includes(q));
   }, [groups, query]);
 
-  // 三點選單
+  // 三點選單狀態
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuGroupId, setMenuGroupId] = useState<string | null>(null);
 
@@ -45,25 +45,23 @@ export default function ScreenGroupList({ navigation }: any) {
     setMenuOpen(false);
     setMenuGroupId(null);
   };
+  
   const getGroup = () => groups.find((g) => g.id === menuGroupId);
 
   const toggleMute = () => {
     const g = getGroup();
     if (!g) return;
-
     const nextMuted = !g.muted;
     setGroups((prev) =>
       prev.map((x) => (x.id === g.id ? { ...x, muted: nextMuted } : x)),
     );
     closeMenu();
-
     Alert.alert("推播設定", nextMuted ? "已關閉推播" : "已開啟推播");
   };
 
   const leaveGroup = () => {
     const g = getGroup();
     if (!g) return;
-
     Alert.alert("退出群組", `確定要退出「${g.name}」嗎？`, [
       { text: "取消", style: "cancel" },
       {
@@ -77,6 +75,7 @@ export default function ScreenGroupList({ navigation }: any) {
     ]);
   };
 
+  // 進入審核頁面（透過選單觸發）
   const reviewMembers = () => {
     const g = getGroup();
     if (!g) return;
@@ -84,11 +83,11 @@ export default function ScreenGroupList({ navigation }: any) {
     navigation.navigate("ReviewMembers", { group: g });
   };
 
+  // 進入成員列表（點擊群組橫幅觸發）
   const openMembers = (g: GroupItem) => {
     navigation.navigate("MemberList", { group: g });
   };
 
-  // 修改後的 Header：拿掉了左右按鈕，只留標題置中
   const renderHeader = (title: string) => (
     <View style={styles.header}>
       <View style={styles.headerTitleContainer}>
@@ -109,7 +108,6 @@ export default function ScreenGroupList({ navigation }: any) {
             onChangeText={setQuery}
             placeholder="搜尋群組"
             placeholderTextColor="#9ca3af"
-            // 針對網頁版優化輸入框
             style={[
               styles.searchInput,
               Platform.OS === "web" && ({ outlineStyle: "none" } as any),
@@ -133,25 +131,29 @@ export default function ScreenGroupList({ navigation }: any) {
           paddingBottom: 16,
         }}
         renderItem={({ item }) => (
+          /* 1. 這裡點擊會進入 MemberList */
           <Pressable onPress={() => openMembers(item)} style={styles.card}>
             <Text style={styles.groupName}>{item.name}</Text>
 
             <View style={styles.rightIcons}>
+              {/* 通知設定按鈕 */}
               <Pressable
-                onPress={() =>
+                onPress={(e) => {
+                  e.stopPropagation(); // 阻止事件冒泡到外層 card
                   Alert.alert(
                     "通知狀態",
                     item.muted ? "目前：推播已關閉" : "目前：推播已開啟",
-                  )
-                }
+                  );
+                }}
                 style={{ paddingHorizontal: 4, paddingVertical: 2 }}
               >
                 <Bell muted={item.muted} />
               </Pressable>
 
+              {/* 2. 這裡點擊才會開啟選單，進而進入審核頁面 */}
               <Pressable
                 onPress={(e) => {
-                  e.stopPropagation?.();
+                  e.stopPropagation(); // 阻止事件冒泡到外層 card
                   openMenu(item.id);
                 }}
                 style={{ paddingHorizontal: 4, paddingVertical: 2 }}
@@ -184,6 +186,7 @@ export default function ScreenGroupList({ navigation }: any) {
 
           <View style={styles.sheetDivider} />
 
+          {/* 從這裡點擊進入 ReviewMembers */}
           <TouchableOpacity style={styles.sheetItem} onPress={reviewMembers}>
             <Text style={styles.sheetText}>審核新成員是否加入群組</Text>
           </TouchableOpacity>
