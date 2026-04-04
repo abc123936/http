@@ -9,8 +9,8 @@ interface PendingMember { userId: string; userName: string; groupId: string; }
 interface GroupContextType {
   groups: Group[]; 
   setGroups: (update: Group[] | ((prev: Group[]) => Group[])) => void;
-  createGroup: (groupName: string) => Promise<string>; 
-  joinGroupById: (id: string) => Promise<boolean>;
+  addGroup: (name: string) => Promise<string>; // 修改：回傳 String ID
+  joinGroupById: (id: string) => Promise<boolean>; // 修改：比對 ID
   pendingRequests: PendingMember[];
   handleReview: (userId: string, groupId: string, isApprove: boolean) => Promise<void>;
   getGroupMembers: (groupId: string) => Member[];
@@ -18,7 +18,7 @@ interface GroupContextType {
 
 const GroupContext = createContext<GroupContextType | undefined>(undefined);
 const MY_GROUPS_KEY = "fc_my_groups_v3";
-const GLOBAL_DB_KEY = "fc_global_db_v3"; 
+const GLOBAL_DB_KEY = "fc_global_db_v3"; // 模擬遠端資料庫
 
 export const GroupProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [groups, _setGroups] = useState<Group[]>([]);
@@ -36,33 +36,32 @@ export const GroupProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     AsyncStorage.getItem(MY_GROUPS_KEY).then(raw => { if (raw) _setGroups(JSON.parse(raw)); });
   }, []);
 
-  // 🌟 修正：此處僅將資料存入「全域庫」，絕對不呼叫 setGroups
-  const createGroup = async (groupName: string) => {
-    const newId = Math.random().toString(36).substring(2, 9).toUpperCase();
+  // 🌟 恢復原始功能：僅存入全球庫，不影響首頁 groups
+  const addGroup = async (name: string) => {
+    const newId = Math.random().toString(36).substring(2, 10).toUpperCase();
     const newGroup: Group = {
       id: newId,
-      name: groupName,
+      name,
       status: "正常",
       createdAt: Date.now(),
       muted: false,
       members: [{ userId: "admin", userName: "管理員", role: "管理員", status: "正常" }],
     };
 
+    // 存入模擬的全球資料庫
     const rawGlobal = await AsyncStorage.getItem(GLOBAL_DB_KEY);
     const globalDB = rawGlobal ? JSON.parse(rawGlobal) : [];
-    
-    // 存入全域資料庫 (模擬後端)
     await AsyncStorage.setItem(GLOBAL_DB_KEY, JSON.stringify([newGroup, ...globalDB]));
     
-    return newId; 
+    return newId; // 只回傳 ID 供使用者複製
   };
 
-  // 🌟 加入：手動貼上 ID 後，才從全域庫撈資料並存入 setGroups
+  // 🌟 恢復原始功能：手動輸入 ID 比對後才加入首頁
   const joinGroupById = async (id: string) => {
     const rawGlobal = await AsyncStorage.getItem(GLOBAL_DB_KEY);
     const globalDB: Group[] = rawGlobal ? JSON.parse(rawGlobal) : [];
+    
     const found = globalDB.find(g => g.id === id);
-
     if (found) {
       if (!groups.some(g => g.id === id)) {
         setGroups(prev => [...prev, found]); // 這裡才真正讓它出現在首頁
@@ -79,7 +78,7 @@ export const GroupProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const getGroupMembers = (groupId: string) => groups.find(g => g.id === groupId)?.members || [];
 
   return (
-    <GroupContext.Provider value={{ groups, setGroups, createGroup, joinGroupById, pendingRequests, handleReview, getGroupMembers }}>
+    <GroupContext.Provider value={{ groups, setGroups, addGroup, joinGroupById, pendingRequests, handleReview, getGroupMembers }}>
       {children}
     </GroupContext.Provider>
   );

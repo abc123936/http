@@ -4,29 +4,29 @@ import { useGroups } from "../context/GroupContext";
 
 export default function ScreenJoinCreate({ navigation }: any) {
   const [isCreate, setIsCreate] = useState(true);
-  const [groupNameInput, setGroupNameInput] = useState(""); 
+  const [name, setName] = useState("");
   const [joinId, setJoinId] = useState("");
-  const { createGroup, joinGroupById } = useGroups();
+  const { addGroup, joinGroupById } = useGroups();
 
   const onCreate = async () => {
-    if (!groupNameInput.trim()) return Alert.alert("提示", "請輸入群組名稱");
+    if (!name.trim()) return Alert.alert("提示", "請輸入群組名稱");
     
-    const generatedId = await createGroup(groupNameInput);
+    // 呼叫恢復後的 addGroup，僅獲取代碼
+    const generatedId = await addGroup(name);
     
-    // 🌟 這裡彈出視窗並顯示代碼
     Alert.alert(
       "獲取成功",
-      `群組代碼：${generatedId}\n\n請複製後到「加入群組」分頁貼上。`,
+      `群組代碼：${generatedId}\n\n請複製此代碼，並切換到「加入群組」分頁貼上。`,
       [
         { 
           text: "複製代碼", 
           onPress: () => {
             Clipboard.setString(generatedId);
-            setGroupNameInput("");
-            setIsCreate(false); // 切換到加入分頁方便使用者操作
+            setName("");
+            setIsCreate(false); // 自動幫你切換到加入分頁
           }
         },
-        { text: "取消", style: "cancel" }
+        { text: "確定", onPress: () => setName("") }
       ]
     );
   };
@@ -39,7 +39,7 @@ export default function ScreenJoinCreate({ navigation }: any) {
         { text: "前往首頁", onPress: () => navigation.navigate("Home") }
       ]);
     } else {
-      Alert.alert("錯誤", "代碼無效，請重新確認");
+      Alert.alert("錯誤", "無效的代碼，請重新確認");
     }
   };
 
@@ -49,7 +49,7 @@ export default function ScreenJoinCreate({ navigation }: any) {
         <Pressable onPress={() => navigation.goBack()} style={styles.backBtn}>
           <Text style={styles.backIcon}>〈</Text>
         </Pressable>
-        <Text style={styles.headerTitle}>群組管理</Text>
+        <Text style={styles.headerTitle}>加入或創建群組</Text>
         <View style={{ width: 44 }} />
       </View>
 
@@ -67,8 +67,8 @@ export default function ScreenJoinCreate({ navigation }: any) {
           <View style={styles.card}>
             <Text style={styles.label}>輸入群組名稱</Text>
             <TextInput
-              value={groupNameInput}
-              onChangeText={setGroupNameInput}
+              value={name}
+              onChangeText={setName}
               placeholder="名稱..."
               placeholderTextColor="#9ca3af"
               style={styles.input}
@@ -83,12 +83,12 @@ export default function ScreenJoinCreate({ navigation }: any) {
             <TextInput
               value={joinId}
               onChangeText={(t) => setJoinId(t.toUpperCase())}
-              placeholder="貼上代碼..."
+              placeholder="在此貼上代碼..."
               placeholderTextColor="#9ca3af"
               style={styles.input}
             />
             <Pressable onPress={onJoin} style={styles.primaryBtn}>
-              <Text style={styles.primaryText}>立即加入</Text>
+              <Text style={styles.primaryText}>確認加入</Text>
             </Pressable>
           </View>
         )}
