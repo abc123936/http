@@ -7,11 +7,19 @@ import {
   Pressable,
   Alert,
   SafeAreaView,
+  Platform,
 } from "react-native";
 import { useGroups } from "../context/GroupContext";
 
 export default function ScreenReviewMembers({ navigation }: any) {
   const { pendingRequests, handleReview } = useGroups();
+
+  // 強制隱藏系統自動生成的 Header
+  React.useLayoutEffect(() => {
+    navigation.setOptions({
+      headerShown: false,
+    });
+  }, [navigation]);
 
   const onConfirm = (req: any, approve: boolean) => {
     const action = approve ? "通過" : "拒絕";
@@ -27,7 +35,7 @@ export default function ScreenReviewMembers({ navigation }: any) {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* --- 修改後的 Header：徹底移除 Pressable 標籤 --- */}
+      {/* 這是你自己寫的 Header，已經徹底移除了 Pressable 標籤 */}
       <View style={styles.header}>
         <View style={styles.headerTitleWrap}>
           <Text style={styles.title}>新成員申請審核</Text>
@@ -36,7 +44,6 @@ export default function ScreenReviewMembers({ navigation }: any) {
           </Text>
         </View>
       </View>
-      {/* ------------------------------------------ */}
 
       <FlatList
         data={pendingRequests}
@@ -87,11 +94,13 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: "row",
     alignItems: "center",
-    height: 70, // 增加一點高度給副標題空間
-    paddingHorizontal: 12,
+    height: 60,
     backgroundColor: "#fff",
     borderBottomWidth: 1,
     borderBottomColor: "#E5E7EB",
+    // 關鍵：確保這層 Header 蓋在最上面
+    zIndex: 999,
+    elevation: 5,
   },
   headerTitleWrap: { 
     flex: 1, 
