@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import {
   Alert,
   SafeAreaView,
@@ -9,9 +9,9 @@ import {
   ScrollView,
   TextInput,
   Platform,
-  Image, // 🌟 新增：用來顯示圖片
+  Image,
 } from "react-native";
-// 🌟 新增：引入 image picker
+// 🌟 確保你有執行過 npx expo install expo-image-picker
 import * as ImagePicker from 'expo-image-picker';
 
 export default function ScreenMe() {
@@ -19,61 +19,43 @@ export default function ScreenMe() {
   const [nickname, setNickname] = React.useState("使用者暱稱");
   const [showId, setShowId] = React.useState(true); 
   const [notificationsOff, setNotificationsOff] = React.useState(false); 
-
-  // 🌟 新增：用來儲存選取的頭像網址 (預設為 null)
+  
+  // 🌟 儲存頭像路徑
   const [avatarUri, setAvatarUri] = useState<string | null>(null);
 
-  // 🌟 邏輯優化：修改頭像功能 (iOS 專用)
+  // 🚀 修改頭像功能：相容 iPhone 瀏覽器與 App
   const onChangeAvatar = async () => {
-    // 1. 在 iPhone 上，需要先詢問相簿權限
-    if (Platform.OS !== 'web') {
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert('權限不足', '抱歉，我們需要相簿存取權限才能修改頭像。', [{ text: '好的' }]);
-        return; // 使用者拒絕，停止往下執行
+    try {
+      // 在網頁版上，這行會直接觸發瀏覽器的檔案選取器
+      let result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true, // 支援縮放裁剪
+        aspect: [1, 1],
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets && result.assets[0]) {
+        const pickedUri = result.assets[0].uri;
+        setAvatarUri(pickedUri);
+        
+        // 針對網頁版的回饋
+        if (Platform.OS === 'web') {
+          console.log("頭像已更新");
+        }
       }
-    }
-
-    // 2. 彈出 Alert，讓使用者選擇
-    Alert.alert(
-      "修改頭像",
-      "請選擇圖片來源",
-      [
-        {
-          text: "從相簿選取",
-          onPress: pickImageFromLibrary,
-        },
-        {
-          text: "取消",
-          style: "cancel",
-        },
-      ]
-    );
-  };
-
-  // 🚀 從相簿選取圖片的邏輯
-  const pickImageFromLibrary = async () => {
-    // 開啟相簿元件
-    let result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images, // 只顯示圖片
-      allowsEditing: true, // 允許裁剪 (iPhone 常用)
-      aspect: [1, 1], // 強制裁剪成 1:1 正方形
-      quality: 0.8, // 圖片品質 (0~1)
-    });
-
-    console.log('圖片選取結果:', result);
-
-    if (!result.canceled) {
-      // 3. 🌟 最關鍵的一步：更新 State，畫面就會看到新照片！
-      // 這裡要拿 assets 裡的 uri
-      const pickedUri = result.assets[0].uri;
-      setAvatarUri(pickedUri);
-      Alert.alert("獲取成功", "頭像已更新");
+    } catch (error) {
+      console.log("選取失敗:", error);
+      if (Platform.OS === 'web') {
+        window.alert("無法開啟相簿，請檢查瀏覽器權限。");
+      } else {
+        Alert.alert("錯誤", "無法開啟相簿");
+      }
     }
   };
 
   return (
     <SafeAreaView style={styles.safe}>
+      {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerTitleContainer}>
           <Text style={styles.headerTitle}>個人設定</Text>
@@ -81,14 +63,15 @@ export default function ScreenMe() {
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
-        {/* 1) 修改頭像 - 已升級為可顯示圖片 */}
+        {/* 1) 修改頭像 - 置中大圖版 */}
         <Pressable onPress={onChangeAvatar} style={styles.avatarSection}>
-          {/* 🌟 修改點：判斷如果有 avatarUri 就顯示圖片，否則顯示灰色圓圈 */}
-          {avatarUri ? (
-            <Image source={{ uri: avatarUri }} style={styles.avatarCircle} />
-          ) : (
-            <View style={styles.avatarCircle} /> // 原本的灰色圓圈
-          )}
+          <View style={styles.avatarCircle}>
+            {avatarUri ? (
+              <Image source={{ uri: avatarUri }} style={styles.avatarFull} />
+            ) : (
+              <View style={styles.avatarPlaceholder} />
+            )}
+          </View>
           <Text style={styles.avatarLabel}>修改頭像</Text>
         </Pressable>
 
@@ -132,12 +115,13 @@ export default function ScreenMe() {
         <Text style={styles.hintMuted}>
           {notificationsOff ? "通知已關閉" : "通知已開啟"}
         </Text>
+
+        {/* 最後一行「是否顯示 ID」已移除 */}
       </ScrollView>
     </SafeAreaView>
   );
 }
 
-// 圈圈/叉叉元件保留
 function OX({ value, onChange }: { value: boolean; onChange: (v: boolean) => void; }) {
   return (
     <View style={styles.oxWrap}>
@@ -158,20 +142,33 @@ const styles = StyleSheet.create({
   headerTitle: { fontSize: 16, fontWeight: "900", color: "#111827", textAlign: "center" },
   content: { paddingHorizontal: 16, paddingTop: 10, paddingBottom: 18 },
   
-  // 保持上一步幫你做的置中放大版樣式
+  // 頭像置中樣式
   avatarSection: {
     alignItems: "center",
     justifyContent: "center",
     paddingVertical: 20,
     gap: 10,
   },
-  // 🌟 注意：原本的 avatarCircle 樣式我也完整保留，它現在可以同時應用在 View 和 Image 上
   avatarCircle: { 
-    width: 80, 
-    height: 80, 
-    borderRadius: 40, // 置中且變圓的關鍵
-    backgroundColor: "#e5e7eb", // 預設灰色
-    overflow: 'hidden', // 確保圖片超出邊框的部分會被裁切成圓形
+    width: 100, 
+    height: 100, 
+    borderRadius: 50, 
+    backgroundColor: "#e5e7eb", 
+    overflow: 'hidden',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#f3f4f6'
+  },
+  avatarFull: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
+  },
+  avatarPlaceholder: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: "#e5e7eb",
   },
   avatarLabel: { fontSize: 14, fontWeight: "800", color: "#6b7280" },
 
